@@ -1,0 +1,702 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#7ec8f7" />
+    <title>Tap Wing Runner</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --ink: #1c2e4a;
+      }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; margin: 0; padding: 0; }
+      body {
+        font-family: "Press Start 2P", system-ui, -apple-system, "Segoe UI",
+          Roboto, sans-serif;
+        color: var(--ink);
+        background: radial-gradient(circle at 50% 30%, #b9e3ff 0%, #7ec8f7 60%, #5aa9e6 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overscroll-behavior: none;
+        touch-action: manipulation;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      button { font-family: inherit; cursor: pointer; }
+      canvas {
+        display: block;
+        image-rendering: pixelated;
+      }
+
+      .stage {
+        position: relative;
+        width: 390px;
+        height: 640px;
+        max-width: 100vw;
+        max-height: 100dvh;
+        border-radius: 28px;
+        overflow: hidden;
+        box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.4);
+        background: #b9e3ff;
+      }
+
+      .overlay {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 40px 24px;
+        z-index: 10;
+        animation: pop 0.25s ease-out both;
+      }
+      @keyframes pop {
+        from { transform: scale(0.9); opacity: 0; }
+        to   { transform: scale(1);   opacity: 1; }
+      }
+      @keyframes floaty {
+        0%, 100% { transform: translateY(0); }
+        50%      { transform: translateY(-6px); }
+      }
+      @keyframes blink {
+        0%, 100% { opacity: 1; }
+        50%      { opacity: 0.35; }
+      }
+
+      .title {
+        font-size: 24px;
+        color: white;
+        text-shadow: 2px 2px 0 rgba(0,0,0,0.25);
+        letter-spacing: 0.15em;
+        text-align: center;
+        line-height: 1.1;
+        margin: 0;
+      }
+      .subtitle {
+        font-size: 9px;
+        color: rgba(255,255,255,0.85);
+        letter-spacing: 0.2em;
+        margin-top: 12px;
+      }
+      .hero-emoji {
+        font-size: 72px;
+        animation: floaty 2.4s ease-in-out infinite;
+        filter: drop-shadow(0 6px 0 rgba(0,0,0,0.15));
+        margin: 18px 0 6px;
+      }
+      .label {
+        font-size: 10px;
+        color: rgba(255,255,255,0.85);
+        letter-spacing: 0.2em;
+      }
+      .big {
+        font-size: 24px;
+        color: white;
+        text-shadow: 2px 2px 0 rgba(0,0,0,0.25);
+        margin-top: 2px;
+      }
+      .spacer { flex: 1; }
+
+      .chars {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+        width: 100%;
+      }
+      .char-btn {
+        aspect-ratio: 1;
+        border-radius: 18px;
+        border: 2px solid rgba(255,255,255,0.4);
+        background: rgba(255,255,255,0.3);
+        color: white;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        font-size: 8px;
+        letter-spacing: 0.15em;
+        transition: transform 0.1s, background 0.1s;
+      }
+      .char-btn .e { font-size: 30px; line-height: 1; }
+      .char-btn:active { transform: scale(0.95); }
+      .char-btn.active {
+        background: rgba(255,255,255,0.92);
+        border-color: #ffd84d;
+        color: #1c2e4a;
+        transform: scale(1.05);
+        box-shadow: 0 6px 16px rgba(0,0,0,0.18);
+      }
+
+      .start-btn, .restart-btn, .change-btn {
+        width: 100%;
+        max-width: 280px;
+        padding: 16px 12px;
+        border: none;
+        border-radius: 18px;
+        font-size: 14px;
+        letter-spacing: 0.2em;
+        transition: transform 0.1s, box-shadow 0.1s;
+      }
+      .start-btn {
+        background: #fde047;
+        color: #1c2e4a;
+        box-shadow: 0 6px 0 #eab308;
+      }
+      .start-btn:active {
+        transform: translateY(3px);
+        box-shadow: 0 3px 0 #eab308;
+      }
+      .restart-btn {
+        background: #34d399;
+        color: white;
+        box-shadow: 0 5px 0 #10b981;
+      }
+      .restart-btn:active {
+        transform: translateY(3px);
+        box-shadow: 0 2px 0 #10b981;
+      }
+      .change-btn {
+        background: white;
+        color: #475569;
+        border: 2px solid #cbd5e1;
+        font-size: 10px;
+      }
+      .change-btn:active { transform: translateY(2px); }
+
+      .tip {
+        font-size: 8px;
+        color: rgba(255,255,255,0.7);
+        letter-spacing: 0.2em;
+        text-align: center;
+        margin-top: 14px;
+      }
+
+      .gameover-card {
+        margin: auto;
+        width: 100%;
+        max-width: 290px;
+        background: rgba(255,255,255,0.92);
+        border-radius: 28px;
+        padding: 24px;
+        border: 4px solid white;
+        box-shadow: 0 25px 50px -10px rgba(0,0,0,0.35);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 14px;
+      }
+      .gameover-card h2 {
+        margin: 0;
+        font-size: 18px;
+        color: #f43f5e;
+        letter-spacing: 0.2em;
+      }
+      .score-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        width: 100%;
+      }
+      .score-tile {
+        border-radius: 16px;
+        padding: 10px 6px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+      }
+      .score-tile.score { background: #e0f2fe; }
+      .score-tile.best  { background: #fef3c7; }
+      .score-tile .k { font-size: 9px; color: #64748b; letter-spacing: 0.2em; }
+      .score-tile .v { font-size: 22px; color: #1e293b; }
+
+      .medal {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border-radius: 999px;
+        padding: 6px 14px;
+        font-size: 10px;
+        letter-spacing: 0.2em;
+        color: #1c2e4a;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+      }
+      .medal.gold   { background: #fde047; }
+      .medal.silver { background: #e2e8f0; }
+      .medal.bronze { background: #f59e0b; color: white; }
+
+      .new-best {
+        font-size: 10px;
+        color: #f43f5e;
+        letter-spacing: 0.2em;
+        animation: blink 1s ease-in-out infinite;
+      }
+
+      .hidden { display: none !important; }
+    </style>
+  </head>
+  <body>
+    <div class="stage" id="stage">
+      <canvas id="game" width="390" height="640"></canvas>
+
+      <!-- Ready / start screen -->
+      <div class="overlay" id="screen-ready">
+        <h1 class="title">TAP WING<br />RUNNER</h1>
+        <p class="subtitle">A CLOUD-HOPPING ADVENTURE</p>
+        <div class="spacer"></div>
+        <div class="hero-emoji" id="hero-emoji">🐤</div>
+        <div class="label">BEST&nbsp;SCORE</div>
+        <div class="big" id="best-ready">0</div>
+        <div class="spacer"></div>
+        <div style="width:100%; display:flex; flex-direction:column; align-items:center; gap:18px;">
+          <div style="width:100%;">
+            <p style="font-size:10px;color:rgba(255,255,255,0.9);letter-spacing:0.2em;margin:0 0 10px;text-align:center;">CHOOSE YOUR FLYER</p>
+            <div class="chars" id="char-grid"></div>
+          </div>
+          <button class="start-btn" id="start-btn">TAP TO START</button>
+          <p class="tip">TAP&nbsp;·&nbsp;CLICK&nbsp;·&nbsp;SPACE&nbsp;TO&nbsp;FLAP</p>
+        </div>
+      </div>
+
+      <!-- Game over screen -->
+      <div class="overlay hidden" id="screen-over" style="justify-content:center; padding:24px;">
+        <div class="gameover-card">
+          <h2>GAME&nbsp;OVER</h2>
+          <div style="font-size:42px;" id="over-emoji">🐤</div>
+          <div class="score-grid">
+            <div class="score-tile score"><span class="k">SCORE</span><span class="v" id="score-final">0</span></div>
+            <div class="score-tile best"><span class="k">BEST</span><span class="v" id="best-final">0</span></div>
+          </div>
+          <div id="medal-slot"></div>
+          <div id="new-best-slot"></div>
+          <button class="restart-btn" id="restart-btn">RESTART</button>
+          <button class="change-btn" id="change-btn">CHANGE&nbsp;CHARACTER</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      "use strict";
+
+      /* ===================== Game config ===================== */
+      const CONFIG = {
+        width: 390,
+        height: 640,
+        gravity: 0.45,
+        jumpForce: -7.5,
+        pipeSpeed: 2.5,
+        pipeWidth: 70,
+        pipeGap: 160,
+        pipeSpawnDistance: 230,
+        groundHeight: 80,
+      };
+
+      const CHARACTERS = [
+        { id: "chick",  name: "Chick",  emoji: "🐤", color: "#ffd84d" },
+        { id: "bat",    name: "Bat",    emoji: "🦇", color: "#7b6cf3" },
+        { id: "drone",  name: "Drone",  emoji: "🚁", color: "#5ad1c8" },
+        { id: "rocket", name: "Rocket", emoji: "🚀", color: "#ff7a7a" },
+      ];
+
+      /* ===================== Storage helpers ===================== */
+      const KEY_BEST = "twr.bestScore";
+      const KEY_CHAR = "twr.selectedCharacter";
+
+      function safeGet(k) { try { return localStorage.getItem(k); } catch { return null; } }
+      function safeSet(k, v) { try { localStorage.setItem(k, v); } catch { /* ignore */ } }
+
+      function getBestScore() {
+        const raw = safeGet(KEY_BEST);
+        const n = parseInt(raw, 10);
+        return Number.isFinite(n) && n > 0 ? n : 0;
+      }
+      function saveBestScore(score) {
+        const current = getBestScore();
+        if (score > current) { safeSet(KEY_BEST, String(score)); return score; }
+        return current;
+      }
+      function getSelectedCharacter() {
+        const id = safeGet(KEY_CHAR);
+        return CHARACTERS.find(c => c.id === id) || CHARACTERS[0];
+      }
+      function setSelectedCharacter(id) { safeSet(KEY_CHAR, id); }
+
+      /* ===================== Random helper ===================== */
+      function randFloat(min, max) { return Math.random() * (max - min) + min; }
+
+      /* ===================== Difficulty curve ===================== */
+      function getPipeSpeed(score) { return Math.min(CONFIG.pipeSpeed + score * 0.03, 4.5); }
+      function getPipeGap(score)   { return Math.max(180 - score * 1.3, 140); }
+
+      /* ===================== Obstacle factory ===================== */
+      function createObstacle(score) {
+        const gap = getPipeGap(score);
+        const minTop = 60;
+        const maxTop = CONFIG.height - CONFIG.groundHeight - gap - 60;
+        const topHeight = randFloat(minTop, Math.max(minTop + 1, maxTop));
+        return {
+          x: CONFIG.width + 20,
+          topHeight,
+          bottomY: topHeight + gap,
+          passed: false,
+          variant: Math.floor(Math.random() * 3),
+        };
+      }
+
+      /* ===================== Collision ===================== */
+      function isCollidingWithObstacle(p, o) {
+        const left = p.x - p.radius;
+        const right = p.x + p.radius;
+        const top = p.y - p.radius;
+        const bottom = p.y + p.radius;
+        if (!(right > o.x && left < o.x + CONFIG.pipeWidth)) return false;
+        return top < o.topHeight || bottom > o.bottomY;
+      }
+      function isOutOfBounds(p) {
+        return (
+          p.y - p.radius <= 0 ||
+          p.y + p.radius >= CONFIG.height - CONFIG.groundHeight
+        );
+      }
+
+      /* ===================== Drawing ===================== */
+      function drawCloud(ctx, x, y, scale) {
+        ctx.beginPath();
+        ctx.arc(x, y, 18 * scale, 0, Math.PI * 2);
+        ctx.arc(x + 18 * scale, y - 8 * scale, 22 * scale, 0, Math.PI * 2);
+        ctx.arc(x + 38 * scale, y, 18 * scale, 0, Math.PI * 2);
+        ctx.arc(x + 22 * scale, y + 8 * scale, 18 * scale, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      function drawBackground(ctx, time, cloudOffset) {
+        const phase = (Math.sin(time / 12000) + 1) / 2;
+        const skyTop = phase < 0.5 ? "#b9e3ff" : "#fbc59c";
+        const grad = ctx.createLinearGradient(0, 0, 0, CONFIG.height);
+        grad.addColorStop(0, skyTop);
+        grad.addColorStop(0.55, "#7ec8f7");
+        grad.addColorStop(1, "#5aa9e6");
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, CONFIG.width, CONFIG.height);
+
+        ctx.fillStyle = "rgba(255,255,255,0.75)";
+        for (let i = 0; i < 5; i++) {
+          const x = ((i * 130 - cloudOffset * 0.25) % (CONFIG.width + 160)) - 80;
+          const y = 80 + (i % 2) * 60;
+          drawCloud(ctx, x, y, 1.0);
+        }
+        ctx.fillStyle = "rgba(255,255,255,0.95)";
+        for (let i = 0; i < 4; i++) {
+          const x = ((i * 170 + 60 - cloudOffset * 0.6) % (CONFIG.width + 200)) - 100;
+          const y = 200 + (i % 2) * 80;
+          drawCloud(ctx, x, y, 1.2);
+        }
+      }
+
+      function drawGround(ctx, groundOffset) {
+        const y = CONFIG.height - CONFIG.groundHeight;
+        const grad = ctx.createLinearGradient(0, y, 0, CONFIG.height);
+        grad.addColorStop(0, "#86d36b");
+        grad.addColorStop(1, "#4f9d3a");
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, y, CONFIG.width, CONFIG.groundHeight);
+
+        ctx.fillStyle = "#3a7a2a";
+        for (let i = 0; i < 14; i++) {
+          const tx = ((i * 36 - groundOffset) % (CONFIG.width + 36)) - 18;
+          ctx.beginPath();
+          ctx.moveTo(tx, y + 14);
+          ctx.lineTo(tx + 6, y + 4);
+          ctx.lineTo(tx + 12, y + 14);
+          ctx.closePath();
+          ctx.fill();
+        }
+
+        ctx.fillStyle = "#7a5235";
+        ctx.fillRect(0, y + 22, CONFIG.width, 6);
+      }
+
+      function drawCloudPillar(ctx, cx, startY, height, width, tint, side) {
+        if (height <= 0) return;
+        ctx.fillStyle = "rgba(60, 90, 130, 0.18)";
+        ctx.fillRect(cx - width / 2 + 4, startY, width, height);
+        ctx.fillStyle = tint;
+        const r = width / 2 + 4;
+        const step = width * 0.45;
+        for (let y = startY + step; y < startY + height - 2; y += step) {
+          ctx.beginPath();
+          ctx.arc(cx, y, r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        const capY = side === "top" ? startY + height : startY;
+        ctx.beginPath();
+        ctx.arc(cx - width * 0.3, capY, r * 0.9, 0, Math.PI * 2);
+        ctx.arc(cx, capY + (side === "top" ? 6 : -6), r, 0, Math.PI * 2);
+        ctx.arc(cx + width * 0.3, capY, r * 0.9, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "rgba(180, 215, 240, 0.55)";
+        ctx.beginPath();
+        ctx.arc(cx - width * 0.25, capY, r * 0.45, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      function drawObstacle(ctx, o) {
+        const w = CONFIG.pipeWidth;
+        const cx = o.x + w / 2;
+        const tint = o.variant === 0 ? "#ffffff" : o.variant === 1 ? "#f3f9ff" : "#eaf3ff";
+        drawCloudPillar(ctx, cx, 0, o.topHeight, w, tint, "top");
+        drawCloudPillar(
+          ctx, cx, o.bottomY,
+          CONFIG.height - CONFIG.groundHeight - o.bottomY,
+          w, tint, "bottom",
+        );
+      }
+
+      function drawPlayer(ctx, p, character) {
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        const tilt = Math.max(-0.45, Math.min(0.9, p.velocity / 14));
+        ctx.rotate(tilt);
+        const glow = ctx.createRadialGradient(0, 0, 4, 0, 0, p.radius + 14);
+        glow.addColorStop(0, (character.color || "#ffd84d") + "aa");
+        glow.addColorStop(1, "transparent");
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(0, 0, p.radius + 14, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.font = (p.radius * 2.3) + 'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(character.emoji, 0, 2);
+        ctx.restore();
+      }
+
+      function drawScore(ctx, score) {
+        ctx.save();
+        ctx.textAlign = "center";
+        ctx.font = '28px "Press Start 2P", system-ui, sans-serif';
+        ctx.fillStyle = "rgba(0,0,0,0.25)";
+        ctx.fillText(String(score), CONFIG.width / 2 + 2, 70);
+        ctx.fillStyle = "#ffffff";
+        ctx.fillText(String(score), CONFIG.width / 2, 68);
+        ctx.restore();
+      }
+
+      /* ===================== Game runtime ===================== */
+      const canvas = document.getElementById("game");
+      const ctx = canvas.getContext("2d");
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      canvas.width = CONFIG.width * dpr;
+      canvas.height = CONFIG.height * dpr;
+      canvas.style.width = CONFIG.width + "px";
+      canvas.style.height = CONFIG.height + "px";
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      const screenReady = document.getElementById("screen-ready");
+      const screenOver  = document.getElementById("screen-over");
+      const heroEmoji   = document.getElementById("hero-emoji");
+      const bestReady   = document.getElementById("best-ready");
+      const bestFinal   = document.getElementById("best-final");
+      const scoreFinal  = document.getElementById("score-final");
+      const overEmoji   = document.getElementById("over-emoji");
+      const medalSlot   = document.getElementById("medal-slot");
+      const newBestSlot = document.getElementById("new-best-slot");
+      const charGrid    = document.getElementById("char-grid");
+
+      let status = "ready";
+      let character = getSelectedCharacter();
+      let bestScore = getBestScore();
+      let lastScore = 0;
+      let player, obstacles, score, distance, rafId;
+      let keyDownBound = false;
+
+      function renderCharGrid() {
+        charGrid.innerHTML = "";
+        CHARACTERS.forEach(c => {
+          const btn = document.createElement("button");
+          btn.className = "char-btn" + (c.id === character.id ? " active" : "");
+          btn.type = "button";
+          btn.setAttribute("aria-pressed", String(c.id === character.id));
+          btn.innerHTML = '<span class="e">' + c.emoji + '</span><span>' + c.name.toUpperCase() + '</span>';
+          btn.addEventListener("click", () => {
+            character = c;
+            setSelectedCharacter(c.id);
+            heroEmoji.textContent = c.emoji;
+            overEmoji.textContent = c.emoji;
+            renderCharGrid();
+          });
+          charGrid.appendChild(btn);
+        });
+      }
+
+      function renderReadyScreen() {
+        bestReady.textContent = String(bestScore);
+        heroEmoji.textContent = character.emoji;
+        overEmoji.textContent = character.emoji;
+        renderCharGrid();
+      }
+
+      function renderGameOverScreen() {
+        scoreFinal.textContent = String(lastScore);
+        bestFinal.textContent = String(bestScore);
+        overEmoji.textContent = character.emoji;
+
+        medalSlot.innerHTML = "";
+        if (lastScore >= 30) medalSlot.innerHTML = '<div class="medal gold">🏅 GOLD</div>';
+        else if (lastScore >= 20) medalSlot.innerHTML = '<div class="medal silver">🏅 SILVER</div>';
+        else if (lastScore >= 10) medalSlot.innerHTML = '<div class="medal bronze">🏅 BRONZE</div>';
+
+        newBestSlot.innerHTML =
+          lastScore > 0 && lastScore === bestScore
+            ? '<div class="new-best">NEW&nbsp;BEST!</div>'
+            : "";
+      }
+
+      function setStatus(next) {
+        status = next;
+        screenReady.classList.toggle("hidden", status !== "ready");
+        screenOver.classList.toggle("hidden", status !== "gameover");
+        if (status === "ready") renderReadyScreen();
+        if (status === "gameover") renderGameOverScreen();
+      }
+
+      function startGame() {
+        player = {
+          x: CONFIG.width * 0.3,
+          y: CONFIG.height * 0.45,
+          radius: 18,
+          velocity: 0,
+        };
+        obstacles = [];
+        score = 0;
+        distance = 0;
+        lastScore = 0;
+        setStatus("playing");
+        cancelAnimationFrame(rafId);
+        last = performance.now();
+        rafId = requestAnimationFrame(tick);
+      }
+
+      function endGame() {
+        lastScore = score;
+        bestScore = saveBestScore(score);
+        cancelAnimationFrame(rafId);
+        setStatus("gameover");
+      }
+
+      function flap() {
+        if (status !== "playing") return;
+        player.velocity = CONFIG.jumpForce;
+      }
+
+      let last = performance.now();
+      const targetDt = 1000 / 60;
+
+      function tick(now) {
+        const dt = now - last;
+        last = now;
+        const steps = Math.max(1, Math.min(3, Math.round(dt / targetDt)));
+        const stepRatio = dt / (steps * targetDt);
+
+        for (let s = 0; s < steps; s++) {
+          if (!update(stepRatio)) break;
+        }
+
+        draw(now);
+
+        if (status === "playing") {
+          rafId = requestAnimationFrame(tick);
+        }
+      }
+
+      function update(stepRatio) {
+        const speed = getPipeSpeed(score) * stepRatio;
+
+        player.velocity += CONFIG.gravity * stepRatio;
+        if (player.velocity > 11) player.velocity = 11;
+        player.y += player.velocity * stepRatio;
+        distance += speed;
+
+        for (const o of obstacles) {
+          o.x -= speed;
+          if (!o.passed && o.x + CONFIG.pipeWidth < player.x) {
+            o.passed = true;
+            score += 1;
+          }
+        }
+        while (obstacles.length && obstacles[0].x + CONFIG.pipeWidth < -20) {
+          obstacles.shift();
+        }
+        const lastObs = obstacles[obstacles.length - 1];
+        if (!lastObs || lastObs.x < CONFIG.width - CONFIG.pipeSpawnDistance) {
+          obstacles.push(createObstacle(score));
+        }
+
+        if (isOutOfBounds(player) || obstacles.some(o => isCollidingWithObstacle(player, o))) {
+          // final frame draws current state then end.
+          draw(performance.now());
+          endGame();
+          return false;
+        }
+        return true;
+      }
+
+      function draw(now) {
+        drawBackground(ctx, now, distance);
+        for (const o of obstacles) drawObstacle(ctx, o);
+        drawGround(ctx, distance);
+        if (status === "playing" || status === "gameover") {
+          drawPlayer(ctx, player, character);
+          drawScore(ctx, score);
+        }
+      }
+
+      /* ===================== Input ===================== */
+      function onKeyDown(e) {
+        if (e.code === "Space" || e.key === " " || e.key === "ArrowUp") {
+          e.preventDefault();
+          if (status === "ready")    startGame();
+          else if (status === "playing") flap();
+          else if (status === "gameover") startGame();
+        }
+      }
+      function onPointerDownCanvas(e) {
+        e.preventDefault();
+        if (status === "playing") flap();
+      }
+
+      if (!keyDownBound) {
+        window.addEventListener("keydown", onKeyDown, { passive: false });
+        keyDownBound = true;
+      }
+      canvas.addEventListener("pointerdown", onPointerDownCanvas, { passive: false });
+
+      document.getElementById("start-btn").addEventListener("click", startGame);
+      document.getElementById("restart-btn").addEventListener("click", startGame);
+      document.getElementById("change-btn").addEventListener("click", () => setStatus("ready"));
+
+      /* ===================== First paint ===================== */
+      // Show an idle background so the canvas doesn't look empty before the
+      // first tap.
+      (function idleFrame() {
+        drawBackground(ctx, performance.now(), 0);
+        drawGround(ctx, 0);
+        if (status === "ready") requestAnimationFrame(idleFrame);
+      })();
+
+      setStatus("ready");
+    </script>
+  </body>
+</html>
