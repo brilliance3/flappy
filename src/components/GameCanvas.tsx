@@ -101,7 +101,12 @@ export default function GameCanvas({
 
     const env: ModeEnv = { ocean: oceanRef.current };
 
-    const act = (input: ActionInput) => {
+    // For continuous (hold-to-steer) modes we track the held input here.
+    const hold: { active: boolean; pointerY?: number; intent?: "up" | "down" } =
+      { active: false };
+
+    // Instant impulse + feedback on the initial press.
+    const press = (input: ActionInput) => {
       if (gameOverRef.current || pausedRef.current) return;
       strategy.handleInput(playerRef.current, input, env);
       audioManager.play("tap");
@@ -118,16 +123,48 @@ export default function GameCanvas({
         e.preventDefault();
         const intent =
           e.key === "ArrowDown" ? "down" : e.key === "ArrowUp" ? "up" : undefined;
-        act({ intent });
+        if (strategy.continuous) {
+          const wasActive = hold.active;
+          hold.active = true;
+          hold.intent = intent ?? "up";
+          hold.pointerY = undefined;
+          if (!wasActive) press({ intent: hold.intent }); // sound once on activate
+        } else {
+          press({ intent });
+        }
+      }
+    };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (
+        strategy.continuous &&
+        (e.code === "Space" || e.key === " " || e.key === "ArrowUp" || e.key === "ArrowDown")
+      ) {
+        hold.active = false;
       }
     };
     const onPointerDown = (e: PointerEvent) => {
       e.preventDefault();
-      act({ pointerY: e.offsetY });
+      if (strategy.continuous) {
+        hold.active = true;
+        hold.pointerY = e.offsetY;
+        hold.intent = undefined;
+      }
+      press({ pointerY: e.offsetY });
+    };
+    const onPointerMove = (e: PointerEvent) => {
+      if (strategy.continuous && hold.active) hold.pointerY = e.offsetY;
+    };
+    const releaseHold = () => {
+      hold.active = false;
     };
 
     window.addEventListener("keydown", onKeyDown, { passive: false });
+    window.addEventListener("keyup", onKeyUp);
     canvas.addEventListener("pointerdown", onPointerDown, { passive: false });
+    canvas.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", releaseHold);
+    canvas.addEventListener("pointercancel", releaseHold);
+    canvas.addEventListener("pointerleave", releaseHold);
 
     let rafId = 0;
     let last = performance.now();
@@ -177,6 +214,11 @@ export default function GameCanvas({
       const obstacles = obstaclesRef.current;
       const speed = strategy.getSpeed(scoreRef.current) * stepRatio;
 
+      // Continuous steering (hold-to-swim) is applied before the mode's own
+      // physics (current drift, gravity) so the player can fight the current.
+      if (strategy.steer && hold.active) {
+        strategy.steer(player, hold, stepRatio);
+      }
       strategy.updatePlayer(player, stepRatio, env);
       distanceRef.current += speed;
 
@@ -230,7 +272,12 @@ export default function GameCanvas({
     return () => {
       cancelAnimationFrame(rafId);
       window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
       canvas.removeEventListener("pointerdown", onPointerDown);
+      canvas.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", releaseHold);
+      canvas.removeEventListener("pointercancel", releaseHold);
+      canvas.removeEventListener("pointerleave", releaseHold);
       gameOverRef.current = true;
     };
   }, [mode, character, onGameOver, onScoreChange]);

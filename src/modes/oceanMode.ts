@@ -170,19 +170,35 @@ export const oceanMode: ModeStrategy = {
     player.y += player.velocity * stepRatio;
   },
 
+  continuous: true,
+
   handleInput(player: Player, input: ActionInput): void {
-    // Steer toward where the player touched/clicked (above me → rise, below →
-    // sink). Keyboard arrows provide an explicit intent. The current keeps
-    // pushing the player around, so steering against it is the challenge.
+    // Instant nudge on the initial press so the press feels responsive; steer()
+    // sustains the motion while the input is held.
     let goUp: boolean;
-    if (input.intent) {
-      goUp = input.intent === "up";
-    } else if (input.pointerY !== undefined) {
-      goUp = input.pointerY < player.y;
+    if (input.intent) goUp = input.intent === "up";
+    else if (input.pointerY !== undefined) goUp = input.pointerY < player.y;
+    else goUp = true;
+    player.velocity = goUp ? -PHYSICS.oceanKick : PHYSICS.oceanKick;
+  },
+
+  steer(player: Player, hold: ActionInput, stepRatio: number): void {
+    // Press-and-hold: keep swimming toward the held direction / touch point.
+    let dir: number;
+    if (hold.intent) {
+      dir = hold.intent === "up" ? -1 : 1;
+    } else if (hold.pointerY !== undefined) {
+      const dy = hold.pointerY - player.y;
+      // Settle (don't oscillate) once we're near the touch point.
+      if (Math.abs(dy) < 18) {
+        player.velocity *= 0.85;
+        return;
+      }
+      dir = dy < 0 ? -1 : 1;
     } else {
-      goUp = true; // bare Space/tap with no position defaults to rising
+      dir = -1; // bare hold = rise
     }
-    player.velocity = goUp ? PHYSICS.oceanUpForce : PHYSICS.oceanDownForce;
+    player.velocity += dir * PHYSICS.oceanSwim * stepRatio;
   },
 
   drawBackground(
@@ -213,20 +229,45 @@ export const oceanMode: ModeStrategy = {
       ctx.stroke();
     }
 
-    // Faint directional current streaks behind everything.
+    // Prominent directional current — full-screen flowing streaks plus edge
+    // chevrons so it's obvious which way (and how hard) the water is pushing.
     const dir = env.ocean?.direction ?? "neutral";
+    const strength = env.ocean?.strength ?? 0;
     if (dir !== "neutral") {
-      ctx.strokeStyle = "rgba(255,255,255,0.12)";
-      ctx.lineWidth = 3;
       const sign = dir === "up" ? -1 : 1;
-      for (let i = 0; i < 6; i++) {
-        const x = (i / 6) * config.width + 20;
-        const phase = ((time / 6) * sign + i * 40) % config.height;
-        const y = dir === "up" ? config.height - phase : phase;
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-        ctx.lineTo(x, y + sign * 26);
-        ctx.stroke();
+      const intensity = Math.min(strength / 0.38, 1);
+      const alpha = 0.14 + intensity * 0.2;
+      ctx.strokeStyle = `rgba(235,250,255,${alpha})`;
+      ctx.lineWidth = 2;
+
+      const span = config.height + 60;
+      const flow = (((time * (0.05 + intensity * 0.07) * sign) % span) + span) % span;
+      const cols = 9;
+      for (let c = 0; c < cols; c++) {
+        const x = ((c + 0.5) / cols) * config.width;
+        for (let s = -1; s <= span / 60 + 1; s++) {
+          const y = ((s * 60 + sign * flow) % span + span) % span - 30;
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.lineTo(x, y + sign * 22);
+          ctx.stroke();
+        }
+      }
+
+      // Pulsing chevrons on both edges pointing the way the current flows.
+      const pulse = 0.5 + 0.5 * Math.sin(time / 250);
+      ctx.fillStyle = `rgba(255,255,255,${0.25 + pulse * 0.4})`;
+      for (const ex of [16, config.width - 16]) {
+        for (let j = 0; j < 3; j++) {
+          const cy = config.height / 2 + sign * (j * 16 - 16);
+          ctx.beginPath();
+          ctx.moveTo(ex - 7, cy + sign * 6);
+          ctx.lineTo(ex, cy - sign * 6);
+          ctx.lineTo(ex + 7, cy + sign * 6);
+          ctx.lineTo(ex, cy - sign * 1);
+          ctx.closePath();
+          ctx.fill();
+        }
       }
     }
 

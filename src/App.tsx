@@ -192,6 +192,14 @@ export default function App() {
           </button>
         )}
 
+        {status === "playing" && mode === "ocean" && (
+          <div className="ocean-hint absolute top-14 left-1/2 -translate-x-1/2 z-20 pointer-events-none px-3 py-2 rounded-xl bg-black/55 text-white text-[10px] leading-snug text-center max-w-[78%]">
+            위 / 아래를 <b>꾹 누르고</b> 있으면 그 방향으로 헤엄쳐요
+            <br />
+            해류(화살표)를 거슬러 산호 사이를 통과!
+          </div>
+        )}
+
         {status === "paused" && (
           <PausedScreen
             mode={mode}

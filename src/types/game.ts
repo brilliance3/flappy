@@ -107,12 +107,12 @@ export const GAME_MODES: GameModeMeta[] = [
   {
     id: "ocean",
     title: "바다 해류 모험",
-    subtitle: "터치한 방향으로 헤엄쳐요",
+    subtitle: "누른 방향으로 헤엄쳐요",
     description: "바뀌는 해류를 거슬러 캐릭터를 조절해 산호와 바위 사이를 통과하세요.",
     difficulty: "hard",
     difficultyLabel: "어려움",
     backgroundTheme: "ocean",
-    controlHint: "터치(또는 ↑/↓ 키)한 방향으로 헤엄쳐요",
+    controlHint: "위/아래를 꾹 누르고 있으면 그 방향으로 헤엄쳐요",
     badge: "🌊",
   },
 ];
@@ -151,11 +151,13 @@ export const PHYSICS = {
   diveForce: 7.5,
   maxFallSpeed: 11,
   maxRiseSpeed: -11,
-  /** Gentle downward drift when the current is neutral (so tap-to-rise works). */
+  /** Gentle downward drift when the current is neutral. */
   oceanNeutralGravity: 0.14,
-  oceanUpForce: -6.0,
-  oceanDownForce: 6.0,
-  oceanSpeedClamp: 8.5,
+  /** Acceleration applied each step while a swim direction is held. */
+  oceanSwim: 0.35,
+  /** Instant velocity nudge on the initial press, for responsiveness. */
+  oceanKick: 2.0,
+  oceanSpeedClamp: 5.5,
 } as const;
 
 export interface MedalRule {

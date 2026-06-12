@@ -11,3 +11,4 @@ dist-ssr
 *.tsbuildinfo
 .vercel
 vite.config.ts.timestamp-*.mjs
+.gstack/

@@ -32,3 +32,19 @@ canvas {
   image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
 }
+
+/* Ocean-mode intro hint: visible, then fades out and disappears. */
+@keyframes oceanHintFade {
+  0%,
+  68% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+.ocean-hint {
+  animation: oceanHintFade 4.5s ease forwards;
+}

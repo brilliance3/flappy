@@ -35,8 +35,12 @@ export interface ModeStrategy {
   getGap(score: number): number;
   /** Advance one physics sub-step (stepRatio compensates for frame time). */
   updatePlayer(player: Player, stepRatio: number, env: ModeEnv): void;
-  /** Respond to a tap/click/key. */
+  /** Respond to a tap/click/key (instant impulse). */
   handleInput(player: Player, input: ActionInput, env: ModeEnv): void;
+  /** True for modes driven by press-and-hold steering rather than taps. */
+  continuous?: boolean;
+  /** Per-step steering while the input is held (continuous modes only). */
+  steer?(player: Player, hold: ActionInput, stepRatio: number): void;
   drawBackground(
     ctx: CanvasRenderingContext2D,
     config: GameConfig,
