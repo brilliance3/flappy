@@ -3,85 +3,24 @@ import { BGM_VOLUME, SFX_VOLUME, type BgmKey, type SoundKey } from "./audioTypes
 
 type Wave = OscillatorType;
 
-interface BgmTrack {
-  /** Seconds per sequencer step. */
-  stepDur: number;
-  /** MIDI notes for the melody voice (null = rest). */
-  melody: (number | null)[];
-  /** MIDI notes for the bass voice (null = rest), sampled on every 4th step. */
-  bass: (number | null)[];
-  /** Sustained chord roots for the atmosphere pad, sampled every 8th step. */
-  pad: (number | null)[];
-  melodyWave: Wave;
-  bassWave: Wave;
-  padWave: Wave;
-  melodyGain: number;
-  bassGain: number;
-  padGain: number;
-  noteDur: number;
-  /** Add a quiet delayed repeat of each melody note (spacey echo). */
-  echo?: boolean;
-}
-
-function midiToFreq(midi: number): number {
-  return 440 * Math.pow(2, (midi - 69) / 12);
-}
-
 /**
- * Per-mode background tracks, synthesised at runtime so the game ships no audio
- * assets. Each has its own key, tempo, instrument timbres and an atmosphere
- * pad: Sky = bright & breezy major, Space = slow minor drone with echo, Ocean =
- * mellow flowing lydian.
+ * Background-music tracks shipped as MP3 files under `public/bgm/`. One is
+ * chosen at random each time the music starts, and a fresh random track plays
+ * when the current one ends — so every run sounds different.
  */
-const BGM_TRACKS: Record<BgmKey, BgmTrack> = {
-  sky: {
-    stepDur: 0.19,
-    melody: [
-      72, 76, 79, 76, 81, 79, 76, 72, 74, 77, 81, 77, 79, 76, 74, 72,
-    ],
-    bass: [48, 52, 50, 53],
-    pad: [60, 65], // C, F chord roots — airy
-    melodyWave: "triangle",
-    bassWave: "sine",
-    padWave: "sine",
-    melodyGain: 0.2,
-    bassGain: 0.26,
-    padGain: 0.05,
-    noteDur: 0.17,
-  },
-  space: {
-    stepDur: 0.34,
-    melody: [
-      69, null, 72, null, 76, null, 74, 71, 69, null, 67, null, 72, null, 69,
-      null,
-    ],
-    bass: [45, 43, 41, 43],
-    pad: [33, 40], // very low A drone + E
-    melodyWave: "sine",
-    bassWave: "triangle",
-    padWave: "sawtooth",
-    melodyGain: 0.18,
-    bassGain: 0.24,
-    padGain: 0.04,
-    noteDur: 0.5,
-    echo: true,
-  },
-  ocean: {
-    stepDur: 0.26,
-    melody: [
-      74, 76, 78, 81, 78, 76, 74, 69, 71, 74, 78, 74, 76, 74, 71, 69,
-    ],
-    bass: [50, 54, 52, 49],
-    pad: [50, 57], // D, A — gentle swell
-    melodyWave: "triangle",
-    bassWave: "sine",
-    padWave: "sine",
-    melodyGain: 0.18,
-    bassGain: 0.24,
-    padGain: 0.06,
-    noteDur: 0.34,
-  },
-};
+const BGM_FILES = [
+  "racing-1.mp3",
+  "racing-2.mp3",
+  "racing-3.mp3",
+  "racing-4.mp3",
+  "racing-5.mp3",
+  "racing-6.mp3",
+];
+
+function bgmUrl(file: string): string {
+  // Files live in `public/bgm/`, served from the site root.
+  return `/bgm/${file}`;
+}
 
 /**
  * Tiny synth-based audio engine. All sounds are generated procedurally with the
@@ -92,17 +31,16 @@ class AudioManager {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
   private sfxBus: GainNode | null = null;
-  private bgmBus: GainNode | null = null;
 
   private soundEnabled = getSoundEnabled();
   private bgmEnabled = getBgmEnabled();
 
-  private currentBgm: BgmKey | null = null;
-  /** Last mode whose BGM started — themes the SFX even after BGM stops. */
+  /** True while a run wants music playing (independent of mute/pause). */
+  private bgmActive = false;
+  /** Last mode that started a run — themes the SFX. */
   private themeMode: BgmKey = "sky";
-  private schedulerId: number | null = null;
-  private nextNoteTime = 0;
-  private step = 0;
+  /** HTMLAudio element that streams the current random MP3 track. */
+  private bgmAudio: HTMLAudioElement | null = null;
   private noise: AudioBuffer | null = null;
 
   /** Must be called from a user gesture to satisfy autoplay policies. */
@@ -122,10 +60,6 @@ class AudioManager {
         this.sfxBus = this.ctx.createGain();
         this.sfxBus.gain.value = SFX_VOLUME;
         this.sfxBus.connect(this.master);
-
-        this.bgmBus = this.ctx.createGain();
-        this.bgmBus.gain.value = BGM_VOLUME;
-        this.bgmBus.connect(this.master);
 
         this.noise = this.buildNoiseBuffer(this.ctx);
       }
@@ -265,125 +199,60 @@ class AudioManager {
   /* ---------- Background music ---------- */
 
   playBgm(mode: BgmKey): void {
-    this.currentBgm = mode;
     this.themeMode = mode;
-    if (!this.bgmEnabled || !this.ctx) return;
-    this.startScheduler();
+    this.bgmActive = true;
+    if (!this.bgmEnabled) return;
+    this.startRandomTrack();
   }
 
-  private startScheduler(): void {
-    if (!this.ctx || this.schedulerId !== null || !this.currentBgm) return;
-    this.step = 0;
-    this.nextNoteTime = this.ctx.currentTime + 0.08;
-    this.schedulerId = window.setInterval(() => this.scheduleAhead(), 25);
+  /** Reuse a single audio element; pick a fresh random track and play it. */
+  private startRandomTrack(): void {
+    if (!this.bgmAudio) {
+      this.bgmAudio = new Audio();
+      // When a track ends, roll the next random one (keeps the run lively).
+      this.bgmAudio.addEventListener("ended", () => {
+        if (this.bgmActive && this.bgmEnabled) this.startRandomTrack();
+      });
+    }
+    const file = this.pickRandomTrack();
+    this.bgmAudio.src = bgmUrl(file);
+    this.bgmAudio.volume = BGM_VOLUME;
+    void this.bgmAudio.play().catch(() => {
+      /* autoplay blocked or load error — stay silent */
+    });
   }
 
-  private scheduleAhead(): void {
-    if (!this.ctx || !this.currentBgm) return;
-    const track = BGM_TRACKS[this.currentBgm];
-    while (this.nextNoteTime < this.ctx.currentTime + 0.12) {
-      this.playBgmStep(track, this.step, this.nextNoteTime);
-      this.nextNoteTime += track.stepDur;
-      this.step++;
+  /** Random track, avoiding an immediate repeat when more than one exists. */
+  private lastTrack: string | null = null;
+  private pickRandomTrack(): string {
+    if (BGM_FILES.length === 1) return BGM_FILES[0];
+    let file = this.lastTrack;
+    while (file === this.lastTrack) {
+      file = BGM_FILES[Math.floor(Math.random() * BGM_FILES.length)];
     }
-  }
-
-  private playBgmStep(track: BgmTrack, step: number, time: number): void {
-    if (!this.ctx || !this.bgmBus) return;
-
-    // Melody (+ optional spacey echo).
-    const m = track.melody[step % track.melody.length];
-    if (m !== null) {
-      this.bgmNote(
-        midiToFreq(m),
-        time,
-        track.noteDur,
-        track.melodyWave,
-        track.melodyGain,
-      );
-      if (track.echo) {
-        this.bgmNote(
-          midiToFreq(m),
-          time + track.stepDur * 0.5,
-          track.noteDur,
-          track.melodyWave,
-          track.melodyGain * 0.35,
-        );
-      }
-    }
-
-    // Bass, every 4th step.
-    if (step % 4 === 0) {
-      const b = track.bass[(step / 4) % track.bass.length | 0];
-      if (b !== null && b !== undefined) {
-        this.bgmNote(
-          midiToFreq(b),
-          time,
-          track.noteDur * 1.6,
-          track.bassWave,
-          track.bassGain,
-        );
-      }
-    }
-
-    // Atmosphere pad: a sustained root + fifth chord every 8th step.
-    if (step % 8 === 0) {
-      const p = track.pad[(step / 8) % track.pad.length | 0];
-      if (p !== null && p !== undefined) {
-        const sustain = track.stepDur * 8;
-        this.bgmNote(midiToFreq(p), time, sustain, track.padWave, track.padGain);
-        this.bgmNote(
-          midiToFreq(p + 7),
-          time,
-          sustain,
-          track.padWave,
-          track.padGain * 0.7,
-        );
-      }
-    }
-  }
-
-  private bgmNote(
-    freq: number,
-    start: number,
-    dur: number,
-    type: Wave,
-    gain: number,
-  ): void {
-    if (!this.ctx || !this.bgmBus) return;
-    const osc = this.ctx.createOscillator();
-    const g = this.ctx.createGain();
-    osc.type = type;
-    osc.frequency.setValueAtTime(freq, start);
-    g.gain.setValueAtTime(0.0001, start);
-    g.gain.linearRampToValueAtTime(gain, start + 0.04);
-    g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
-    osc.connect(g);
-    g.connect(this.bgmBus);
-    osc.start(start);
-    osc.stop(start + dur + 0.05);
+    this.lastTrack = file;
+    return file!;
   }
 
   stopBgm(): void {
-    if (this.schedulerId !== null) {
-      clearInterval(this.schedulerId);
-      this.schedulerId = null;
+    this.bgmActive = false;
+    if (this.bgmAudio) {
+      this.bgmAudio.pause();
+      this.bgmAudio.currentTime = 0;
     }
-    this.currentBgm = null;
   }
 
-  /** Pause the music without forgetting which track was playing. */
+  /** Pause the music without forgetting that a run is active. */
   pauseBgm(): void {
-    if (this.schedulerId !== null) {
-      clearInterval(this.schedulerId);
-      this.schedulerId = null;
-    }
+    this.bgmAudio?.pause();
   }
 
-  /** Resume after a pause if BGM is still enabled and a track is selected. */
+  /** Resume after a pause if BGM is still enabled and a run is active. */
   resumeBgm(): void {
-    if (!this.bgmEnabled || !this.currentBgm) return;
-    this.startScheduler();
+    if (!this.bgmEnabled || !this.bgmActive || !this.bgmAudio) return;
+    void this.bgmAudio.play().catch(() => {
+      /* ignore */
+    });
   }
 
   /* ---------- Settings ---------- */
@@ -396,8 +265,10 @@ class AudioManager {
     this.bgmEnabled = enabled;
     if (!enabled) {
       this.pauseBgm();
-    } else if (this.currentBgm) {
-      this.startScheduler();
+    } else if (this.bgmActive) {
+      // If a track was already loaded, resume it; otherwise start a new one.
+      if (this.bgmAudio && this.bgmAudio.src) this.resumeBgm();
+      else this.startRandomTrack();
     }
   }
 

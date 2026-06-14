@@ -7,5 +7,5 @@ export type SoundKey = "tap" | "score" | "hit" | "gameover" | "button";
 export type BgmKey = GameMode;
 
 /** Recommended mix levels (0..1). */
-export const BGM_VOLUME = 0.35;
-export const SFX_VOLUME = 0.7;
+export const BGM_VOLUME = 0.7;
+export const SFX_VOLUME = 0.95;
