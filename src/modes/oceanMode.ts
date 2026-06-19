@@ -16,6 +16,7 @@ import {
   type ModeEnv,
   type ModeStrategy,
 } from "./shared";
+import { t } from "../i18n";
 
 /* ---------- Difficulty ---------- */
 
@@ -141,9 +142,9 @@ function directionGlyph(direction: CurrentDirection): string {
 }
 
 function directionLabel(direction: CurrentDirection): string {
-  if (direction === "up") return "상승 해류";
-  if (direction === "down") return "하강 해류";
-  return "잔잔한 해류";
+  if (direction === "up") return t("cur_up");
+  if (direction === "down") return t("cur_down");
+  return t("cur_calm");
 }
 
 export const oceanMode: ModeStrategy = {
@@ -385,7 +386,7 @@ export const oceanMode: ModeStrategy = {
     ctx.font = '9px system-ui, sans-serif';
     if (cur.warning) {
       ctx.fillText(
-        `${directionGlyph(cur.nextDirection)} ${directionLabel(cur.nextDirection)} 곧 변경!`,
+        `${directionGlyph(cur.nextDirection)} ${directionLabel(cur.nextDirection)} ${t("change_soon")}`,
         x + 36,
         y + boxH / 2 + 8,
       );

@@ -1,4 +1,5 @@
 import ToggleChip from "./ToggleChip";
+import { t } from "../i18n";
 
 interface VibrationToggleProps {
   enabled: boolean;
@@ -11,7 +12,7 @@ export default function VibrationToggle({
 }: VibrationToggleProps) {
   return (
     <ToggleChip
-      label="진동"
+      label={t("vibration")}
       icon="📳"
       enabled={enabled}
       onToggle={onToggle}

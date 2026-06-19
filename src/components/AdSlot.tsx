@@ -1,3 +1,5 @@
+import { t } from "../i18n";
+
 interface AdSlotProps {
   placement: "start-bottom" | "gameover-bottom" | "mode-bottom";
 }
@@ -14,7 +16,7 @@ export default function AdSlot({ placement }: AdSlotProps) {
       className="w-full max-w-xs h-12 rounded-xl border border-dashed border-white/40 bg-white/10 flex items-center justify-center"
     >
       <span className="text-[8px] text-white/50 tracking-widest">
-        AD&nbsp;·&nbsp;광고 영역
+        AD&nbsp;·&nbsp;{t("ad")}
       </span>
     </div>
   );

@@ -1,4 +1,5 @@
 import ToggleChip from "./ToggleChip";
+import { t } from "../i18n";
 
 interface SoundToggleProps {
   soundEnabled: boolean;
@@ -17,13 +18,13 @@ export default function SoundToggle({
   return (
     <>
       <ToggleChip
-        label="효과음"
+        label={t("sfx")}
         icon="🔊"
         enabled={soundEnabled}
         onToggle={onToggleSound}
       />
       <ToggleChip
-        label="배경음"
+        label={t("bgm")}
         icon="🎵"
         enabled={bgmEnabled}
         onToggle={onToggleBgm}

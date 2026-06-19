@@ -1,4 +1,5 @@
 import { GAME_MODES, type GameMode } from "../types/game";
+import { t } from "../i18n";
 
 interface ModeSelectorProps {
   selectedMode: GameMode;
@@ -20,7 +21,7 @@ export default function ModeSelector({
   return (
     <div className="w-full">
       <p className="text-[10px] text-white/90 mb-2 text-center tracking-wider">
-        SELECT MODE
+        {t("select_mode")}
       </p>
       <div className="flex flex-col gap-2">
         {GAME_MODES.map((m) => {
@@ -49,7 +50,7 @@ export default function ModeSelector({
                     isSelected ? "text-slate-900" : "text-white",
                   ].join(" ")}
                 >
-                  {m.title}
+                  {t(`${m.id}_title`)}
                 </span>
                 <span
                   className={[
@@ -57,14 +58,14 @@ export default function ModeSelector({
                     isSelected ? "text-slate-500" : "text-white/80",
                   ].join(" ")}
                 >
-                  {m.subtitle}
+                  {t(`${m.id}_sub`)}
                 </span>
               </span>
               <span className="flex flex-col items-end gap-1 shrink-0">
                 <span
                   className={`text-[8px] px-1.5 py-0.5 rounded-full ${DIFFICULTY_STYLE[m.id]}`}
                 >
-                  {m.difficultyLabel}
+                  {t(`diff_${m.difficulty}`)}
                 </span>
                 <span
                   className={[

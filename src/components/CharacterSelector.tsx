@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { Character, GameMode } from "../types/game";
+import { t } from "../i18n";
 import {
   drawBat,
   drawBird,
@@ -104,7 +105,7 @@ export default function CharacterSelector({
   return (
     <div className="w-full">
       <p className="text-[10px] text-white/90 mb-2 text-center tracking-wider">
-        CHOOSE YOUR FLYER
+        {t("choose_flyer")}
       </p>
       <div className="grid grid-cols-4 gap-2">
         {list.map((character) => {
@@ -122,7 +123,7 @@ export default function CharacterSelector({
                   : "bg-white/30 border-white/40 hover:bg-white/50",
               ].join(" ")}
               aria-pressed={isSelected}
-              aria-label={`Select ${character.name}`}
+              aria-label={t(`char_${character.id}`)}
             >
               <span className="flex items-center justify-center h-8" aria-hidden>
                 <SpriteIcon character={character} size={30} />
@@ -133,7 +134,7 @@ export default function CharacterSelector({
                   isSelected ? "text-slate-700" : "text-white/90",
                 ].join(" ")}
               >
-                {character.name.toUpperCase()}
+                {t(`char_${character.id}`).toUpperCase()}
               </span>
             </button>
           );
