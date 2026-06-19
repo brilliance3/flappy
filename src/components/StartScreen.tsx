@@ -70,7 +70,7 @@ export default function StartScreen({
           onSelect={onSelectCharacter}
         />
 
-        <div className="w-full flex flex-wrap items-center justify-center gap-2">
+        <div className="w-full flex flex-nowrap items-center justify-center gap-1.5">
           <SoundToggle
             soundEnabled={soundEnabled}
             bgmEnabled={bgmEnabled}

@@ -35,7 +35,7 @@ export default function PausedScreen({
         {meta.badge} {t(`${mode}_title`)}
       </p>
 
-      <div className="flex flex-wrap items-center justify-center gap-2">
+      <div className="w-full flex flex-nowrap items-center justify-center gap-1.5">
         <SoundToggle
           soundEnabled={soundEnabled}
           bgmEnabled={bgmEnabled}
